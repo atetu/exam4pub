@@ -48,6 +48,7 @@ int main(int argc, char **argv, char **envp)
 {
 	g_envp = envp;
 
+	int ret; 
 	if (argc == 1)
 		return (0);
 
@@ -91,10 +92,15 @@ int main(int argc, char **argv, char **envp)
 
 				if (tok->type != TT_STRING)
 				{
-					pr->piped = tok->type == TT_PIPE;
-					pr->semicoloned = tok->type == TT_SEMICOLON;
+					if (tok->type == TT_PIPE)
+						pr->type = TT_PIPE;
+					else if (tok->type == TT_SEMICOLON)
+						pr->type = TT_SEMICOLON;
+				
 					break;
 				}
+				else
+					pr->type = TT_STRING;
 			}
 
 			size_t args_size = j - start - (tok != NULL && tok->type != TT_STRING);
@@ -119,8 +125,8 @@ int main(int argc, char **argv, char **envp)
 	//			printf("arg[%zu] = %s\n", j, pr->args[j]);
 	//	}
 
-	int pipe_fds[2] = {0, 0};
-	int fd_in = 0;
+	// int pipe_fds[2] = {0, 0};
+	// int fd_in = 0;
 
 	/* Execution. */
 	for (size_t i = 0; i < g_program_count; ++i)
@@ -144,43 +150,53 @@ int main(int argc, char **argv, char **envp)
 		}
 		else
 		{
-			
-		
-		pipe(pipe_fds);
-
-		if ((pr->pid = fork()) == -1)
-			return (terminate_errno("fork"));
-		else if (pr->pid == 0)
-		{
-			dup2(fd_in, FD_IN);
-			if (pr->piped)
-				dup2(pipe_fds[1], FD_OUT);
-			//          printf("%d\n", pr->piped);
-			close(pipe_fds[0]);
-			ft_putstr(1, pr->path);
-
-			if (execve(pr->path, pr->args, g_envp) == -1) 
-				return (terminate_errno("execve"));
-		}
-		else
-		{
-			if (pr->semicoloned || i == g_program_count - 1)
+			int p = 0;
+			int status;
+			ret = EXIT_FAILURE;
+			if (pr->piped || (i > 0 && g_programs[i-1].piped))
 			{
-				//				ft_putstr(FD_ERR, strcat(strcat(strdup("waiting: "), pr->path), "\n"));
-				waitpid(pr->pid, NULL, 0);
-				close(pipe_fds[0]);
-				fd_in = 0;
+				if (pr->piped)
+					p = 1;
+				if (pipe(g_programs[i].pipe_fd) == -1)
+					return (terminate_errno("pipe"));
+			}
+
+			if ((pr->pid = fork()) == -1)
+				return (terminate_errno("fork"));
+			else if (pr->pid == 0)
+			{
+				if (pr->piped && dup2(pr->pipe_fd[1], FD_OUT) < 0 && close)
+					return (terminate_errno("dup"));
+				if (i >0 && g_programs[i-1].piped && dup2(g_programs[i-1].pipe_fd[0], FD_IN) < 0 && close(g_programs[i-1].pipe_fd[0]))
+					return (terminate_errno("dup"));
+				//          printf("%d\n", pr->piped);
+				close(pr->pipe_fd[1]);
+				close(pr->pipe_fd[0]);
+				//ft_putstr(1, pr->path);
+
+				if ((ret = execve(pr->path, pr->args, g_envp) == -1))
+					terminate_errno("execve");
+				exit(ret);
 			}
 			else
-				fd_in = pipe_fds[0];
-			close(pipe_fds[1]);
-		}
+			{
+				waitpid(pr->pid, NULL, 0);
+				if (p)
+				{
+					close(pr->pipe_fd[1]);
+					if (i == g_program_count - 1 || g_programs[i+1].type == TT_SEMICOLON)
+						close(pr->pipe_fd[0]);
+				}
+				if (i > 0 && g_programs[i -1].type == TT_PIPE)
+					close(g_programs[i-1].pipe_fd[0]);
+				if (WIFEXITED(status))
+					ret = WEXITSTATUS(status);
+			}
 		}
 	}
 
-	/* Just to be sure. */
-	for (size_t i = 0; i < g_program_count; ++i)
-		waitpid(g_programs[i].pid, NULL, 0);
-
-	return (terminate(NULL, false));
+	while(1)
+	{}
+	terminate(NULL, false);
+	return (ret);
 }
