@@ -142,7 +142,7 @@ int main(int argc, char **argv, char **envp)
 			if (pr->count == 0 && tok->type == TT_SEMICOLON)
 				continue;
 			printf("count : %zu\n", pr->count);
-			pr->args = malloc_zeros((pr->count+1) * sizeof(char *));
+			pr->args = malloc_zeros((pr->count) * sizeof(char *));
 
 			for (size_t k = 0; k < pr->count; ++k)
 				pr->args[k] = g_tokens[start + k].data;

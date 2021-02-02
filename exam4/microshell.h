@@ -33,7 +33,7 @@ typedef struct
 	bool semicoloned;
 	pid_t pid;
 	int pipes[2];
-	size_t count;
+	int count
 } t_program;
 
 void*
