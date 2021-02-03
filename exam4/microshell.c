@@ -90,13 +90,13 @@ int main(int argc, char **argv, char **envp)
 
 	g_tokens = malloc_zeros((g_token_count = argc - 1) * sizeof(t_token));
 
-	printf("g_token_count: %zu\n", g_token_count);
+//	printf("g_token_count: %zu\n", g_token_count);
 	/* Arguments to tokens. */
 	for (int i = 1; i < argc; ++i)
 	{
 		t_token *tok = &(g_tokens[i - 1]);
 		char *curr = tok->data = strdup(argv[i]);
-		printf("i: %d / data : %s\n", i, tok->data);
+//		printf("i: %d / data : %s\n", i, tok->data);
 		tok->end = i == argc - 1;
 
 		if (strcmp(";", curr) == 0)
@@ -119,14 +119,14 @@ int main(int argc, char **argv, char **envp)
 		for (size_t i = 0; i < g_program_count; ++i)
 		{
 			t_program *pr = &(g_programs[i]);
-			printf("j before : %zu \n", j);
+		//	printf("j before : %zu \n", j);
 			size_t start = j;
-			printf("j after : %zu \n", j);
+		//	printf("j after : %zu \n", j);
 			t_token *tok = NULL;
 			while (j < g_token_count)
 			{
 				tok = &(g_tokens[j]);
-				printf("j loop : %zu \n", j);
+		//		printf("j loop : %zu \n", j);
 				if (tok->type != TT_STRING)
 				{
 					pr->piped = tok->type == TT_PIPE;
@@ -136,16 +136,24 @@ int main(int argc, char **argv, char **envp)
 				j++;
 			}
 
-			printf("j : %zu \n", j);
-			printf("start : %zu - %s\n", start, g_tokens[start].data);
+		//	printf("j : %zu \n", j);
+		///	printf("start : %zu \n", start);
 			pr->count = j - start;
-			if (pr->count == 0 && tok->type == TT_SEMICOLON)
+		//	printf("count : %zu\n", pr->count);
+			if (pr->count == 0 && (!tok || tok->type == TT_SEMICOLON))
+			{
+				j++;
+		//		printf("j in the loop : %zu\n", j);
 				continue;
-			printf("count : %zu\n", pr->count);
-			pr->args = malloc_zeros((pr->count) * sizeof(char *));
+			}
+		//	printf("count : %zu\n", pr->count);
+			pr->args = malloc_zeros((pr->count + 1) * sizeof(char *));
 
 			for (size_t k = 0; k < pr->count; ++k)
+			{
 				pr->args[k] = g_tokens[start + k].data;
+		//		printf("arg: %s\n", pr->args[k]);
+			}
 
 			pr->path = pr->args[0];
 			 j++;
@@ -201,7 +209,7 @@ int main(int argc, char **argv, char **envp)
 				{
 					if (dup2(fd_in, FD_IN) < 0)
 						exit_fatal();
-					printf("fd in after close : %d\n", fd_in);
+			//		printf("fd in after close : %d\n", fd_in);
 					if (pr->piped)
 					{
 						if (dup2(pr->pipes[1], FD_OUT) < 0)

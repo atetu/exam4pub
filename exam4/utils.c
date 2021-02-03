@@ -3,7 +3,6 @@
 void*
 malloc_zeros(size_t size)
 {
-	printf("%zu\n", size);
 	char *mem = malloc(size);
 
 	if (mem)
