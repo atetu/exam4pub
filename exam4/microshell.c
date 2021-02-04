@@ -1,6 +1,9 @@
 #include "microshell.h"
 #include <unistd.h>
 #include <stdio.h>
+#include <signal.h>
+#include <sys/errno.h>
+#include <stdio.h>
 
 #define STDIN		0
 #define STDOUT		1
@@ -14,7 +17,7 @@ t_token *g_tokens = NULL;
 size_t g_program_count = 1;
 t_program *g_programs = NULL;
 
-int terminate(char *msg, bool asErr)
+int terminate(char *msg, int ret)
 {
 	// if (msg)
 	// {
@@ -29,7 +32,7 @@ int terminate(char *msg, bool asErr)
 	free(g_tokens);
 	free(g_programs);
 
-	exit(asErr);
+	exit(ret);
 
 	return (0);
 }
@@ -81,9 +84,64 @@ int terminate_errno(char *origin)
 	return (terminate(NULL, true));
 }
 
+void			control_c(int sig)
+{
+
+
+	(void)sig;
+	for (size_t i = 0; i < g_program_count; ++i)
+	{
+		if(g_programs[i].pid != 0)
+		{
+			kill(g_programs[i].pid, sig);
+			printf("KILL\n");
+		}
+	}
+	// write(1, "\n", 1);
+	terminate(NULL, 130);
+	
+}
+
+void			control_quit(int sig)
+{
+
+	(void)sig;
+	int is_kill = 0;
+	for (size_t i = 0; i < g_program_count; ++i)
+	{
+		if(g_programs[i].pid != 0)
+		{
+			kill(g_programs[i].pid, sig);
+			is_kill = 1;
+		}
+	}
+
+	if (is_kill)
+	{
+		write(1, "\b\b  \b\b", 6);
+		terminate(NULL, 127);
+	}
+	else
+	{
+		write(1, "Quit\n", 5);
+		terminate(NULL, 131);
+	}
+	
+}
 int main(int argc, char **argv, char **envp)
 {
 	g_envp = envp;
+
+	if (signal(SIGINT, &control_c) == SIG_ERR)
+	{
+		exit_fatal();
+		return (EXIT_FAILURE);
+	}
+	if (signal(SIGQUIT, &control_quit) == SIG_ERR)
+	{
+		exit_fatal();
+		return (EXIT_FAILURE);
+	}
 
 	if (argc == 1)
 		return (0);
@@ -95,7 +153,7 @@ int main(int argc, char **argv, char **envp)
 	for (int i = 1; i < argc; ++i)
 	{
 		t_token *tok = &(g_tokens[i - 1]);
-		char *curr = tok->data = strdup(argv[i]);
+		char *curr = tok->data = argv[i];
 //		printf("i: %d / data : %s\n", i, tok->data);
 		tok->end = i == argc - 1;
 
@@ -178,9 +236,45 @@ int main(int argc, char **argv, char **envp)
 	for (size_t i = 0; i < g_program_count; ++i)
 	{
 		t_program *pr = &(g_programs[i]);
-		if(pr && pr->args)
+		if(pr->args)
 		{
-			if (strcmp("cd", pr->path) == 0)
+			int p[2];
+			pipe(p);
+
+			pid_t pid = fork();
+
+			if (pid == 0)
+			{
+				dup2(fd_in, 0);
+
+				if (pr->piped)
+					dup2(p[1], 1);
+
+				close(p[0]);
+				execve(pr->path, pr->args, envp);
+			}
+			else
+			{
+				if (pr->semicoloned || i == g_program_count - 1)
+				{
+					waitpid(pid, NULL, 0);
+					if (fd_in)
+						close(fd_in);
+					fd_in = 0;
+					close(p[0]);
+				}
+				else
+				{
+					if (fd_in)
+						close(fd_in);
+					fd_in = p[0];	
+				}
+
+				close(p[1]);
+			}
+			
+
+			/*if (strcmp("cd", pr->path) == 0)
 			{
 				if (pr->count < 2)
 					exit_cd_1();
@@ -197,9 +291,9 @@ int main(int argc, char **argv, char **envp)
 			}
 			
 			else
-			{
+			{*/
 				
-			
+			/*
 				if(pipe(pr->pipes))
 					exit_fatal();
 
@@ -215,7 +309,8 @@ int main(int argc, char **argv, char **envp)
 						if (dup2(pr->pipes[1], FD_OUT) < 0)
 							exit_fatal();
 					}
-				
+					close(pr->pipes[0]);
+					printf("count: %zu\n", pr->count);
 					if (execve(pr->path, pr->args, g_envp) == -1) 
 						exit_execve(pr->path);
 					exit(EXIT_SUCCESS);
@@ -225,8 +320,12 @@ int main(int argc, char **argv, char **envp)
 					if (pr->semicoloned || i == g_program_count - 1)
 					{
 						//				ft_putstr(FD_ERR, strcat(strcat(strdup("waiting: "), pr->path), "\n"));
+						dprintf(2, "----------------===-=-=-=- waiting %d: %s %zu\n", pr->pid, pr->path, i);
 						waitpid(pr->pid, NULL, 0);
+						dprintf(2, "----------------===-=-=-=- finished waiting %d\n", pr->pid);
 						close(pr->pipes[0]);
+						if (fd_in)
+							close(fd_in);
 						fd_in = 0;
 					}
 					else
@@ -234,11 +333,11 @@ int main(int argc, char **argv, char **envp)
 						fd_in = pr->pipes[0];
 						// printf("fd in : %d\n", fd_in);
 					}
-					if (i > 0 && g_programs[i-1].piped)
-						close(g_programs[i-1].pipes[0]);
+					//if (i > 0 && g_programs[i-1].piped)
+					//	close(g_programs[i-1].pipes[0]);
 					close(pr->pipes[1]);
-				}
-			}
+				}*/
+			//}
 		}
 		else
 		{
@@ -247,9 +346,12 @@ int main(int argc, char **argv, char **envp)
 		
 	}
 
+	if (fd_in != 0)
+		close(fd_in);
+
 	/* Just to be sure. */
-	for (size_t i = 0; i < g_program_count; ++i)
-		waitpid(g_programs[i].pid, NULL, 0);
+	//for (size_t i = 0; i < g_program_count; ++i)
+	//	waitpid(g_programs[i].pid, NULL, 0);
 	// while(1)
 	// {}
 	return (terminate(NULL, false));
