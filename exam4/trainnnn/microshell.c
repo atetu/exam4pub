@@ -8,8 +8,11 @@ void *malloc_zero(size_t size)
 {
     char *mem = NULL;
     mem = malloc(size);
+    if (mem)
+    {
     for (size_t i = 0; i < size; i++)
         mem[i] = 0;
+    }
     return (mem);
 }
 
@@ -40,6 +43,8 @@ int terminate(char *str, int ret)
     }   
     if (g_tok)
         free(g_tok);
+    while (1)
+    {}
     exit(ret);
     return (ret);
 }
@@ -87,22 +92,26 @@ int ret = 0;
     if (argc < 2)
         return(0);
     
-    if (!(g_tok = malloc((argc -1) *sizeof(t_token))))
+    if (!(g_tok = malloc_zero((argc -1) *sizeof(t_token))))
         return(exit_fatal());
 
     for (int i = 1; i < argc; i++)
     {
         char *cur = g_tok[i-1].data = argv[i];
         if (strcmp(cur, ";") == 0)
-            g_tok[i-1].type = SEMI;
-         if (strcmp(cur, "|") == 0)
-            g_tok[i-1].type = PIPE;
+        {
+            printf("cur\n");
+            g_tok[i-1].type = T_SEMI;
+            printf("type : %d\n", g_tok[i -1].type);
+        }
+        else if (strcmp(cur, "|") == 0)
+            g_tok[i-1].type = T_PIPE;
         else
-            g_tok[i-1].type = STRING;
-        if (g_tok[i-1].type != STRING)
+            g_tok[i-1].type = T_STRING;
+        if (g_tok[i-1].type != T_STRING)
             g_count++;
     }
-    if (!(g_prog = malloc(g_count * (sizeof(t_program)))))
+    if (!(g_prog = malloc_zero(g_count * (sizeof(t_program)))))
         return (exit_fatal());
     
     int start = 0;
@@ -117,33 +126,41 @@ int ret = 0;
         {
             
             to = &(g_tok[j]);
-            if (g_tok[j].type == PIPE)
-                g_prog[i].piped = 1;
-            if (g_tok[j].type == SEMI)
-                g_prog[i].semicolon = 1;
-            if (g_tok[j].type == PIPE || g_tok[i].type == SEMI)
+            printf("type : %d\n", g_tok[j].type);
+            if (to->type != T_STRING)
+            {
+                printf("no string\n");
+                if (g_tok[j].type == T_PIPE)
+                    g_prog[i].piped = 1;
+                if (g_tok[j].type == T_SEMI)
+                    g_prog[i].semicolon = 1;
+                //if (g_tok[j].type == PIPE || g_tok[i].type == SEMI)
+                
                 break;
+            }
             j++;
         }
         //int c;
-        g_prog[i].c = j - start;
-   //       printf("start: %d\n", start);
-    //        printf("j: %d\n", j);
-        if ( g_prog[i].c == 0 && (!to || g_tok[j].type == SEMI))
+     
+       printf("start: %d\n", start);
+          printf("j: %d\n", j);
+           g_prog[i].c = j - start;
+           if ( g_prog[i].c == 0 && (!to || g_tok[j].type == T_SEMI))
         {
+            printf("---------ICI\n");
             j++;
             continue;
         }
-        else if (g_prog[i].c == 0 )
-            j++;
-        else if (g_tok[j].type == STRING)
-            j++;
+        // else if (g_prog[i].c == 0 )
+        //     j++;
+        // else if (g_tok[j].type == STRING)
+        //     j++;
         // else if (c == 0)
         //     c++;
         
-        if (!(g_prog[i].argv = malloc((g_prog[i].c) * (sizeof(char*)))))
+        if (!(g_prog[i].argv = malloc_zero((g_prog[i].c +1) * (sizeof(char*)))))
             return (exit_fatal());
-      //  printf("c: %d\n", g_prog[i].c);
+        printf("c: %d\n", g_prog[i].c);
         for (int k = 0; k < g_prog[i].c; ++k)
         {
             g_prog[i].argv[k] = g_tok[start + k].data;
@@ -152,11 +169,13 @@ int ret = 0;
         g_prog[i].path = g_prog[i].argv[0];
         j++;
     }
-
+int status;
     for (int i = 0 ; i < g_count; i++)
     {
+        if (g_prog[i].argv)
+        {
         int ret = 0;
-        int status;
+        
         if (strcmp(g_prog[i].path, "cd") == 0)
         {
             if (g_prog[i].c <2)
@@ -212,14 +231,16 @@ int ret = 0;
                
 
             }
-            
+        }   
+        
         }
-
+        else 
+            return (terminate(NULL, 1));
         for (int i = 0 ; i < g_count; i++)
         {
             waitpid(g_prog[i].pid, &status, 0);
-            if (WIFEXITED(status))
-			            ret = WEXITSTATUS(status);
+            // if (WIFEXITED(status))
+			//             ret = WEXITSTATUS(status);
         }
 
 

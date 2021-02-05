@@ -9,9 +9,9 @@
 
 typedef enum
 {
-    SEMI = 0,
-    STRING,
-    PIPE
+    T_SEMI = 0,
+    T_STRING,
+    T_PIPE
 } ttype;
 
 
