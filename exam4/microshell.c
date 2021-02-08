@@ -32,9 +32,9 @@ int terminate(int ret)
 		g_tokens = NULL;
 	}
 
-	// while (1)
-	// {
-	// }
+	while (1)
+	{
+	}
 	exit(ret);
 
 	return (0);
@@ -235,27 +235,24 @@ int main(int argc, char **argv, char **envp)
 
 					if (execve(pr->path, pr->args, g_envp) == -1)
 					{
-						//exit(1);
-						close(pr->pipes[0]);
-						
-						//fd_in = pr->pipes[0];
-
+						// close(pr->pipes[0]);
 						exit_execve(pr->path);
-						if (g_programs)
-						{
-							for (size_t i = 0; i < g_program_count; ++i)
-								free(g_programs[i].args);
-							free(g_programs);
-							g_programs = NULL;
-						}
-						if (g_tokens)
-						{
-							free(g_tokens);
-							g_tokens = NULL;
-						}
+						// if (g_programs)
+						// {
+						// 	for (size_t i = 0; i < g_program_count; ++i)
+						// 		free(g_programs[i].args);
+						// 	free(g_programs);
+						// 	g_programs = NULL;
+						// }
+						// if (g_tokens)
+						// {
+						// 	free(g_tokens);
+						// 	g_tokens = NULL;
+						// }
 						exit(1);
 						
 					}
+					printf("la\n");
 					exit(EXIT_SUCCESS);
 				}
 				else
@@ -265,6 +262,7 @@ int main(int argc, char **argv, char **envp)
 						waitpid(pr->pid, &status, 0);
 						if (WIFEXITED(status))
 							ret = WEXITSTATUS(status);
+						printf("ret : %d\n", ret);
 						close(pr->pipes[0]);
 
 						fd_in = 0;
