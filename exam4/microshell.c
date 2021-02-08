@@ -87,6 +87,13 @@ void control_c(int sig)
 			}
 		}
 	}
+	printf("control c\n");
+	for (size_t i = 0; i < g_program_count; i++)
+	{
+		close(g_programs[i].pipes[0]);
+		close(g_programs[i].pipes[1]);
+
+	}
 	terminate(130);
 }
 
@@ -214,7 +221,8 @@ int main(int argc, char **argv, char **envp)
 			{
 				if (pipe(pr->pipes))
 					exit_fatal();
-
+				printf("pipe [0]: %d\n", pr->pipes[0]);
+				printf("pipe [1]: %d\n", pr->pipes[1]);
 				if ((pr->pid = fork()) == -1)
 					exit_fatal();
 				else if (pr->pid == 0)
@@ -235,7 +243,14 @@ int main(int argc, char **argv, char **envp)
 
 					if (execve(pr->path, pr->args, g_envp) == -1)
 					{
-						// close(pr->pipes[0]);
+						close(pr->pipes[0]);
+						close(pr->pipes[1]);
+						if (FD_IN)
+							close(FD_IN);
+						if (i > 0 && g_programs[i - 1].piped)
+						{
+							close(g_programs[i - 1].pipes[0]);
+						}
 						exit_execve(pr->path);
 						// if (g_programs)
 						// {
@@ -259,10 +274,12 @@ int main(int argc, char **argv, char **envp)
 				{
 					if (pr->semicoloned || i == g_program_count - 1)
 					{
+						printf("before\n");
 						waitpid(pr->pid, &status, 0);
+						printf("after\n");
 						if (WIFEXITED(status))
 							ret = WEXITSTATUS(status);
-						printf("ret : %d\n", ret);
+					//	printf("ret : %d\n", ret);
 						close(pr->pipes[0]);
 
 						fd_in = 0;
@@ -281,7 +298,10 @@ int main(int argc, char **argv, char **envp)
 		}
 		else
 		{
-			return (terminate(1));
+			if (i == 0)
+				return (terminate(1));
+			else
+				return (terminate(0));
 		}
 	}
 
