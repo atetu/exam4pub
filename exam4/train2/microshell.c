@@ -59,7 +59,7 @@ int terminate(int ret)
 	// {
 
 	// }
-	printf("ret: %d\n", ret);
+//	printf("ret: %d\n", ret);
 	exit (ret);
 	return (ret);
 }
@@ -274,6 +274,7 @@ int main(int argc, char **argv, char **env)
 						}
 						close(fd_in); // ICI
 					}
+					
 					if (pr->piped)
 					{
 						if (dup2(g_prog[i].pipes[1], 1) == -1)
@@ -305,16 +306,17 @@ int main(int argc, char **argv, char **env)
 				}
 				else
 				{
+					if (pr->pid == -1) // ICI
+						;
+					else
+					{
+						waitpid(pr->pid, &status, 0);
+						if (WIFEXITED(status))
+							g_ret = WEXITSTATUS(status);
+					}
 					if (pr->semicolon || i == g_count -1)
 					{
-						if (pr->pid == -1) // ICI
-							;
-						else
-						{
-							waitpid(pr->pid, &status, 0);
-							if (WIFEXITED(status))
-								g_ret = WEXITSTATUS(status);
-						}
+						
 						if (pr->piped && close(pr->pipes[0]) == -1)
 						{
 							close_previous_fd(i);
