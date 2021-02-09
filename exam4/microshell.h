@@ -34,6 +34,7 @@ typedef struct
 	pid_t pid;
 	int pipes[2];
 	size_t count;
+	int open;
 } t_program;
 
 void*
