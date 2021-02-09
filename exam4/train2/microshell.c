@@ -10,10 +10,15 @@ void *malloc_zero(size_t size)
 {
 	char *mem = NULL;
 	mem = malloc(size);
+//	printf("size : %zu\n", size);
 	if (mem)
 	{
-		for (size_t i =0 ; i < size; i++)
+		for (size_t i =0 ; i < size ; i++)
+		{
 			mem[i] =0 ;
+//			printf("i : %zu\n", i);
+		}
+
 	}
 	return (mem);
 }
@@ -116,6 +121,33 @@ void control_quit(int sig)
 	g_ret = 131;
 }
 
+
+void close_one_fd(int fd)
+{
+	close(fd);
+}
+
+void close_two_fd(int i)
+{
+	if (g_prog[i].piped)
+	{
+		close(g_prog[i].pipes[0]);
+		close(g_prog[i].pipes[1]);
+	}
+}
+
+void close_previous_fd(int i)
+{
+	if (i > 0 && g_prog[i-1].piped)
+		close(close(g_prog[i-1].pipes[0]));
+}
+
+void close_fd_in(int fd)
+{
+	if (fd)
+		close(fd);
+}
+
 int main(int argc, char **argv, char **env)
 {
 
@@ -133,7 +165,7 @@ int main(int argc, char **argv, char **env)
 	if (!(g_tok = malloc_zero((argc-1) * (sizeof(t_token)))))
 		return (exit_fatal());
 
-	for (int i = 0; i < argc; i++)
+	for (int i = 1; i < argc; i++)
 	{
 		char *cur = g_tok[i -1].data = argv[i];
 		if (strcmp(cur, ";") == 0)
@@ -198,39 +230,75 @@ int main(int argc, char **argv, char **env)
 		{
 			if (strcmp(pr->path, "cd") == 0)
 			{
+				g_ret = 0;
 				if (pr->count <2)
+				{
+					g_ret = 1;
 					cd1();
+				}
+				
 				if (chdir(pr->argv[1]) == -1)
+				{
+					g_ret = 1;
 					cd2(pr->argv[1]);
+				}
 			}
 			else
 			{
 				if (pr->piped)
 				{
 					if (pipe(pr->pipes) == -1)
+					{
+						close_fd_in(fd_in);
+						close_previous_fd(i);
 						return (exit_fatal());	
+					}
 				}
 				if ((pr->pid = fork()) == -1)
+				{
+					close_previous_fd(i);
+					close_two_fd(i);
+					close_fd_in(fd_in);
 					return (exit_fatal());
+				}
 				else if (pr->pid == 0)
 				{
 					if (fd_in)
 					{
 						if (dup2(fd_in, 0) == -1)
+						{
+							close_previous_fd(i);
+							close_two_fd(i);
+							close_fd_in(fd_in);
 							return (exit_fatal());
-						close(fd_in);
+						}
+						close(fd_in); // ICI
 					}
 					if (pr->piped)
 					{
 						if (dup2(g_prog[i].pipes[1], 1) == -1)
+						{
+							close_previous_fd(i);
+							close_two_fd(i);
 							return (exit_fatal());
+						}
 						if (close(pr->pipes[1]) == -1)
+						{
+							close_previous_fd(i);
+							close_two_fd(i);
 							return (exit_fatal());
+						}
 						if (close(pr->pipes[0]) == -1)
+						{
+							close_previous_fd(i);
+							close_two_fd(i);
 							return (exit_fatal());
+						}
 					}
 					if (execve(pr->path, pr->argv, g_env) == -1)
 					{
+						close(0);
+						close(1);
 						exit_execve(pr->path);
 						exit(1);
 					}
@@ -239,18 +307,18 @@ int main(int argc, char **argv, char **env)
 				{
 					if (pr->semicolon || i == g_count -1)
 					{
-						if (pr->pid == -1)
+						if (pr->pid == -1) // ICI
 							;
 						else
 						{
 							waitpid(pr->pid, &status, 0);
 							if (WIFEXITED(status))
 								g_ret = WEXITSTATUS(status);
-						//	printf("ret inside : %d\n", g_ret);
 						}
 						if (pr->piped && close(pr->pipes[0]) == -1)
 						{
-					//		printf("wait\n");
+							close_previous_fd(i);
+							close_two_fd(i);
 							return (exit_fatal());
 						}
 						fd_in = 0;
@@ -261,14 +329,17 @@ int main(int argc, char **argv, char **env)
 					}
 					if (pr->piped && close(pr->pipes[1]) == -1)
 					{
-					//	printf("close pipe 1\n");
+						close_previous_fd(i);
+						close_two_fd(i);
+						close_fd_in(fd_in);
 						return (exit_fatal());
 					}
 					if (i> 0 && g_prog[i-1].piped)
 					{
 						if (close(g_prog[i-1].pipes[0]) == -1)
 						{
-				//			printf("close pipe 0\n");
+							close_two_fd(i);
+							close_fd_in(fd_in);
 							return (exit_fatal());
 						}
 					}
