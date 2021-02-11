@@ -204,7 +204,7 @@ int main(int argc, char **argv, char **env)
 
 		g_prog[i].count = j - start;
 	//printf("count : %d\n", g_prog[i].count);
-		if (g_prog[i].count == 0 && (!tok || tok->type == SEMI))
+		if (g_prog[i].count == 0 && (!tok || tok->type == SEMI || tok->type == PIPE))
 		{
 			j++;
 			continue;
@@ -235,12 +235,14 @@ int main(int argc, char **argv, char **env)
 				{
 					g_ret = 1;
 					cd1();
+					continue;
 				}
-				
+				printf("%s\n", pr->argv[1]);
 				if (chdir(pr->argv[1]) == -1)
 				{
 					g_ret = 1;
 					cd2(pr->argv[1]);
+					continue;
 				}
 			}
 			else
@@ -354,10 +356,10 @@ int main(int argc, char **argv, char **env)
 		{
 			if (i == g_count -1)
 				return(terminate(g_ret));
-			else
-			{
-				return (terminate(1));
-			}
+			// else
+			// {
+			// 	return (terminate(1));
+			// }
 			
 		}
 	}
