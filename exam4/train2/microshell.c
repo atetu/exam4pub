@@ -55,10 +55,10 @@ int terminate(int ret)
 		free(g_tok);
 		g_tok = NULL;
 	}
-	// while (1)
-	// {
+	while (1)
+	{
 
-	// }
+	}
 //	printf("ret: %d\n", ret);
 	exit (ret);
 	return (ret);
@@ -308,17 +308,17 @@ int main(int argc, char **argv, char **env)
 				}
 				else
 				{
-					if (pr->pid == -1) // ICI
-						;
-					else
-					{
-						waitpid(pr->pid, &status, 0);
-						if (WIFEXITED(status))
-							g_ret = WEXITSTATUS(status);
-					}
+					
 					if (pr->semicolon || i == g_count -1)
 					{
-						
+						if (pr->pid == -1) // ICI
+						;
+						else
+						{
+							waitpid(pr->pid, &status, 0);
+							if (WIFEXITED(status))
+								g_ret = WEXITSTATUS(status);
+						}
 						if (pr->piped && close(pr->pipes[0]) == -1)
 						{
 							close_previous_fd(i);
