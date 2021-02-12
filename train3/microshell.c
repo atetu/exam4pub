@@ -223,8 +223,8 @@ int main(int argc, char **argv, char **env)
 					}
 					if (pipe(pr->pipes) == -1)
 						return (exit_fatal());
-					// printf("pipe 0: %d\n", pr->pipes[0]);
-					// printf("pipe 1: %d\n", pr->pipes[1]);
+					printf("pipe 0: %d\n", pr->pipes[0]);
+					printf("pipe 1: %d\n", pr->pipes[1]);
 				}
 					if ((pr->pid = fork()) == -1)
 						return (exit_fatal());
@@ -257,39 +257,50 @@ int main(int argc, char **argv, char **env)
 					}
 					else
 					{
+						int tmp;
 						if (pr->semicolon || i == g_count -1)
-						{
+						{	
+							// waitpid(pr->pid, &status, 0);
+							// if (WIFEXITED(status))
+							// 	g_ret = WEXITSTATUS(status);
 							if (pipe_tube)
 							{
-								while(pstart != i)
+								tmp = 0;
+								while(pstart < i +1)
 								{
-									if (g_prog[pstart].pid == 0 || g_prog[pstart].pid == -1)
-										waitpid(g_prog[pstart].pid, &status, 0);
-									g_prog[pstart].pid = 0;
-									if (WIFEXITED(status))
-										g_ret = WEXITSTATUS(status);
-									if (pstart > 0  && g_prog[start-1].piped)
-									{
+									// if (g_prog[pstart].pid == 0 || g_prog[pstart].pid == -1)
+									// 	waitpid(g_prog[pstart].pid, &status, 0);
+									// g_prog[pstart].pid = 0;
+									// if (WIFEXITED(status))
+									// 	g_ret = WEXITSTATUS(status);
+								
 										//printf("ICI\n");
 										close(g_prog[pstart-1].pipes[0]);
 										close(g_prog[pstart-1].pipes[1]);
-									}
+									
 									pstart++;
 								}
-								if (pstart > 0  && g_prog[start-1].piped)
-								{
-								//	printf("ICI\n");
-									close(g_prog[pstart-1].pipes[0]);
-									close(g_prog[pstart-1].pipes[1]);
-								}
+								// if (pstart > 0  && g_prog[start-1].piped)
+								// {
+								// //	printf("ICI\n");
+								// 	close(g_prog[pstart-1].pipes[0]);
+								// 	close(g_prog[pstart-1].pipes[1]);
+								// }
 								pstart = 0;
 								pipe_tube = 0;
+								while(tmp < i +1)
+								{
+									printf("tmp : %d\n", tmp);
+									printf("pid : %d\n", g_prog[tmp].pid);
+								waitpid(g_prog[tmp].pid, &status, 0);
+								if (WIFEXITED(status))
+									g_ret = WEXITSTATUS(status);
+								tmp++;
+								}
 							}
-							waitpid(pr->pid, &status, 0);
-							if (WIFEXITED(status))
-								g_ret = WEXITSTATUS(status);
-							if (pr->piped && close(pr->pipes[0] == -1))
-								return (exit_fatal());
+							
+							// if (pr->piped && close(pr->pipes[0] == -1))
+							// 	return (exit_fatal());
 							fd_in = 0;
 						}
 						else
